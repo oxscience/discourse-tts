@@ -5,6 +5,9 @@ export default apiInitializer((api) => {
     (element, helper) => {
       if (!helper) return;
 
+      // Skip editor preview — only render in actual post view
+      if (element.closest(".d-editor-preview, .composer-popup, .edit-body")) return;
+
       const post = helper.getModel();
       if (!post || !post.tts_upload_url) return;
 
