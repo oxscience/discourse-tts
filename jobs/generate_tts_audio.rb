@@ -227,33 +227,10 @@ module Jobs
       chunks
     end
 
+    # Simple binary concatenation — works for MP3 and OGG_OPUS streams.
+    # No ffmpeg needed.
     def concatenate_audio(audio_parts)
-      format = SiteSetting.tts_audio_format
-
-      Dir.mktmpdir("tts_concat") do |tmpdir|
-        part_files = audio_parts.each_with_index.map do |data, i|
-          path = File.join(tmpdir, "part_#{i}.#{format}")
-          File.binwrite(path, data)
-          path
-        end
-
-        list_path = File.join(tmpdir, "filelist.txt")
-        File.write(list_path, part_files.map { |f| "file '#{f}'" }.join("\n"))
-
-        output_path = File.join(tmpdir, "output.#{format}")
-        result = system(
-          "ffmpeg", "-y", "-f", "concat", "-safe", "0",
-          "-i", list_path, "-c", "copy", output_path,
-          [:out, :err] => "/dev/null"
-        )
-
-        unless result && File.exist?(output_path)
-          Rails.logger.error("[discourse-tts] ffmpeg concatenation failed")
-          return nil
-        end
-
-        File.binread(output_path)
-      end
+      audio_parts.join
     end
 
     def create_upload(post, audio_data, user_id)
