@@ -1,21 +1,32 @@
 import { apiInitializer } from "discourse/lib/api";
-import TtsPlayButton from "../components/post-menu/tts-play-button";
-import TtsPlayer from "../components/tts-player";
 
 export default apiInitializer((api) => {
-  const siteSettings = api.container.lookup("service:site-settings");
-  if (!siteSettings.tts_enabled) return;
+  api.decorateCookedElement(
+    (element, helper) => {
+      if (!helper) return;
 
-  // Register TTS button in the post menu
-  api.registerValueTransformer(
-    "post-menu-buttons",
-    ({ value: dag, context: { firstButtonKey } }) => {
-      dag.add("tts-play", TtsPlayButton, {
-        before: firstButtonKey,
-      });
-    }
+      const post = helper.getModel();
+      if (!post || !post.tts_upload_url) return;
+
+      // Don't add twice
+      if (element.querySelector(".tts-audio-player")) return;
+
+      const player = document.createElement("div");
+      player.className = "tts-audio-player";
+      player.innerHTML = `
+        <div class="tts-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+          <span>Diesen Beitrag anhören</span>
+        </div>
+        <audio controls preload="none">
+          <source src="${post.tts_upload_url}" type="audio/mpeg">
+        </audio>
+      `;
+
+      element.prepend(player);
+    },
+    { id: "discourse-tts-player" }
   );
-
-  // Render audio player below each post
-  api.renderInOutlet("post-below", TtsPlayer);
 });
