@@ -12,7 +12,7 @@ module Jobs
     OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
     GOOGLE_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
     MAX_CHUNK_OPENAI = 4096
-    MAX_CHUNK_GOOGLE = 5000  # Google allows up to 5000 bytes of input
+    MAX_CHUNK_GOOGLE = 3500  # Google limit is 5000 bytes; use 3500 chars to be safe with multi-byte (ä, ö, ü)
 
     def execute(args)
       post_id = args[:post_id]
