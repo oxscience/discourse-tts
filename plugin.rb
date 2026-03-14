@@ -40,10 +40,15 @@ after_initialize do
 
   # Expose tts_upload_url in the post serializer so the frontend knows about it
   add_to_serializer(:post, :tts_upload_url) do
-    upload_id = PluginStore.get("discourse-tts", "post_#{object.id}_upload_id")
-    return nil unless upload_id
+    next nil unless SiteSetting.tts_enabled rescue nil
+    upload_id = PluginStore.get("discourse-tts", "post_#{object.id}_upload_id") rescue nil
+    next nil unless upload_id
     upload = Upload.find_by(id: upload_id)
     upload&.url
+  end
+
+  add_to_serializer(:post, :include_tts_upload_url?) do
+    SiteSetting.tts_enabled rescue false
   end
 
   # ----- Event hooks -----
