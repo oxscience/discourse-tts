@@ -61,8 +61,19 @@ module Jobs
       # Cut at first <hr> — everything after (e.g. sources) is excluded
       html = html.split(/<hr\s*\/?>/).first || html
 
+      # Add pauses after headings: append period + newlines so TTS takes a breath
+      html = html.gsub(%r{</h[1-6]>}i, '.\n\n')
+
+      # Add pause after paragraphs and list items
+      html = html.gsub(%r{</p>}i, '.\n')
+      html = html.gsub(%r{</li>}i, '.\n')
+
       text = ActionView::Base.full_sanitizer.sanitize(html)
       text = CGI.unescapeHTML(text)
+
+      # Clean up duplicate periods (e.g. "Heading." becomes "Heading.." → fix)
+      text = text.gsub(/\.{2,}/, '.')
+
       text.gsub(/\s+/, " ").strip
     end
 
