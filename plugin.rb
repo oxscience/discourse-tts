@@ -9,7 +9,7 @@
 
 enabled_site_setting :tts_enabled
 
-register_asset "stylesheets/tts.scss"
+# register_asset "stylesheets/tts.scss"
 
 after_initialize do
   # ----- Load files -----
