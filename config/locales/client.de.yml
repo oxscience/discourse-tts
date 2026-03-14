@@ -1,0 +1,17 @@
+de:
+  js:
+    tts:
+      title: "Text-to-Speech"
+      play_button_title: "Diesen Beitrag vorlesen"
+      generate_button: "Audio generieren"
+      generating: "Audio wird generiert..."
+      play: "Abspielen"
+      pause: "Pause"
+      error: "Audiogenerierung fehlgeschlagen. Bitte erneut versuchen."
+      too_long: "Dieser Beitrag ist zu lang für die Audiogenerierung."
+      backfill:
+        title: "Audio für bestehende Beiträge generieren"
+        description: "Dies generiert TTS-Audio für alle bestehenden Beiträge ohne Audio. Das kann eine Weile dauern und API-Guthaben verbrauchen."
+        start: "Backfill starten"
+        running: "Backfill läuft..."
+        done: "Backfill abgeschlossen!"

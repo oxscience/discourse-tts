@@ -1,0 +1,17 @@
+en:
+  js:
+    tts:
+      title: "Text-to-Speech"
+      play_button_title: "Listen to this post"
+      generate_button: "Generate Audio"
+      generating: "Generating audio..."
+      play: "Play"
+      pause: "Pause"
+      error: "Audio generation failed. Please try again."
+      too_long: "This post is too long for audio generation."
+      backfill:
+        title: "Generate Audio for Existing Posts"
+        description: "This will generate TTS audio for all existing posts that don't have audio yet. This may take a while and use API credits."
+        start: "Start Backfill"
+        running: "Backfill in progress..."
+        done: "Backfill complete!"

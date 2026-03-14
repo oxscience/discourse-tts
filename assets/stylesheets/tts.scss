@@ -1,0 +1,168 @@
+// ============================================
+// Discourse TTS Plugin Styles
+// ============================================
+
+// Post menu button
+.tts-play-btn {
+  .d-icon {
+    color: var(--primary-medium);
+    transition: color 0.15s ease;
+  }
+
+  &:hover .d-icon {
+    color: var(--tertiary);
+  }
+}
+
+// Player container (below post)
+.tts-player-container {
+  margin: 8px 0 4px;
+  padding: 10px 14px;
+  background: var(--primary-very-low);
+  border-radius: 8px;
+  border: 1px solid var(--primary-low);
+  font-size: var(--font-down-1);
+}
+
+// Controls layout
+.tts-player-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+// Play/Pause button
+.tts-play-pause {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--tertiary);
+  color: var(--secondary);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+
+  &:hover {
+    background: var(--tertiary-hover);
+    transform: scale(1.05);
+  }
+
+  svg {
+    fill: currentColor;
+  }
+}
+
+// Progress bar
+.tts-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--primary-low);
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: height 0.1s ease;
+
+  &:hover {
+    height: 8px;
+  }
+}
+
+.tts-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--tertiary);
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+// Time display
+.tts-time {
+  flex-shrink: 0;
+  color: var(--primary-medium);
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
+  text-align: center;
+  font-size: var(--font-down-2);
+}
+
+// Close button
+.tts-close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--primary-medium);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: var(--font-down-1);
+
+  &:hover {
+    background: var(--primary-low);
+    color: var(--primary);
+  }
+}
+
+// Loading state
+.tts-player-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary-medium);
+
+  .spinner {
+    border-color: var(--tertiary);
+    border-right-color: transparent;
+  }
+}
+
+// Error state
+.tts-player-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--danger);
+
+  .btn {
+    padding: 2px 8px;
+    min-height: unset;
+  }
+}
+
+// Generate button state
+.tts-player-generate {
+  display: flex;
+  align-items: center;
+
+  .btn {
+    font-size: var(--font-down-1);
+  }
+}
+
+// Mobile adjustments
+@media (max-width: 767px) {
+  .tts-player-controls {
+    gap: 6px;
+  }
+
+  .tts-time {
+    display: none;
+  }
+
+  .tts-play-pause {
+    width: 32px;
+    height: 32px;
+  }
+}

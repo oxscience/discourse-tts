@@ -1,0 +1,12 @@
+de:
+  site_settings:
+    tts_enabled: "Text-to-Speech Audiogenerierung für Posts aktivieren"
+    tts_api_key: "OpenAI API-Key für TTS-Generierung"
+    tts_model: "OpenAI TTS-Modell (tts-1 = schnell, tts-1-hd = hohe Qualität)"
+    tts_voice: "Stimme für TTS-Generierung (nova, alloy, echo, etc.)"
+    tts_speed: "Audio-Wiedergabegeschwindigkeit (1.0 = normal)"
+    tts_audio_format: "Audio-Ausgabeformat (mp3 empfohlen)"
+    tts_max_post_length: "Maximale Zeichenlänge für TTS-Generierung"
+    tts_auto_generate: "Audio automatisch für neue Posts generieren"
+    tts_auto_generate_first_post_only: "Audio nur für den ersten Post eines Themas generieren"
+    tts_instructions: "Stimmanweisungen für gpt-4o-mini-tts Modell (Ton, Akzent, Stil)"

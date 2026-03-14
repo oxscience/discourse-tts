@@ -1,0 +1,82 @@
+plugins:
+  tts_enabled:
+    default: false
+    client: true
+    description: "Enable text-to-speech audio generation for posts"
+
+  tts_api_key:
+    default: ""
+    secret: true
+    description: "OpenAI API key for TTS generation"
+
+  tts_model:
+    default: "tts-1-hd"
+    type: list
+    choices:
+      - tts-1
+      - tts-1-hd
+      - gpt-4o-mini-tts
+    client: false
+    description: "OpenAI TTS model to use"
+
+  tts_voice:
+    default: "nova"
+    type: list
+    choices:
+      - alloy
+      - ash
+      - coral
+      - echo
+      - fable
+      - nova
+      - onyx
+      - sage
+      - shimmer
+    client: true
+    description: "Voice to use for TTS generation"
+
+  tts_speed:
+    default: "1.0"
+    type: list
+    choices:
+      - "0.75"
+      - "0.9"
+      - "1.0"
+      - "1.1"
+      - "1.25"
+      - "1.5"
+    client: false
+    description: "Playback speed for generated audio"
+
+  tts_audio_format:
+    default: "mp3"
+    type: list
+    choices:
+      - mp3
+      - opus
+      - aac
+    client: false
+    description: "Audio output format"
+
+  tts_max_post_length:
+    default: 15000
+    min: 1000
+    max: 50000
+    client: true
+    description: "Maximum post character length for TTS generation"
+
+  tts_auto_generate:
+    default: true
+    client: false
+    description: "Automatically generate TTS audio for new posts"
+
+  tts_auto_generate_first_post_only:
+    default: false
+    client: false
+    description: "Only auto-generate TTS for the first post in a topic (OP)"
+
+  tts_instructions:
+    default: "Speak clearly and naturally in a conversational tone. Read the text as an informative article."
+    type: text
+    client: false
+    description: "Voice instructions (only used with gpt-4o-mini-tts model)"
