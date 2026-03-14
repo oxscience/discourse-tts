@@ -3,13 +3,16 @@
 require "net/http"
 require "json"
 require "tempfile"
+require "base64"
 
 module Jobs
   class GenerateTtsAudio < ::Jobs::Base
     sidekiq_options retry: 3
 
     OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
-    MAX_CHUNK_SIZE = 4096
+    GOOGLE_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
+    MAX_CHUNK_OPENAI = 4096
+    MAX_CHUNK_GOOGLE = 5000  # Google allows up to 5000 bytes of input
 
     def execute(args)
       post_id = args[:post_id]
@@ -29,7 +32,7 @@ module Jobs
       return if text.blank?
       return if text.length > SiteSetting.tts_max_post_length
 
-      # Generate audio
+      # Generate audio via selected provider
       audio_data = generate_audio(text)
       return unless audio_data
 
@@ -46,33 +49,34 @@ module Jobs
         post_id: post.id
       })
 
-      Rails.logger.info("[discourse-tts] Generated audio for post #{post.id} (#{text.length} chars)")
+      Rails.logger.info("[discourse-tts] Generated audio for post #{post.id} via #{SiteSetting.tts_provider} (#{text.length} chars)")
     rescue => e
       Rails.logger.error("[discourse-tts] Failed to generate audio for post #{post_id}: #{e.message}")
-      raise e # Let Sidekiq retry
+      raise e
     end
 
     private
 
-    # Strip HTML tags, decode entities, normalize whitespace
     def extract_text(html)
       text = ActionView::Base.full_sanitizer.sanitize(html)
       text = CGI.unescapeHTML(text)
       text.gsub(/\s+/, " ").strip
     end
 
-    # Generate audio, handling chunking for long texts
     def generate_audio(text)
-      chunks = chunk_text(text)
+      provider = SiteSetting.tts_provider
+
+      max_chunk = provider == "google" ? MAX_CHUNK_GOOGLE : MAX_CHUNK_OPENAI
+      chunks = chunk_text(text, max_chunk)
 
       if chunks.length == 1
-        return call_openai_tts(chunks.first)
+        return call_tts(chunks.first, provider)
       end
 
       # Multiple chunks: generate each, then concatenate
       audio_parts = chunks.map.with_index do |chunk, i|
-        Rails.logger.info("[discourse-tts] Generating chunk #{i + 1}/#{chunks.length}")
-        data = call_openai_tts(chunk)
+        Rails.logger.info("[discourse-tts] Generating chunk #{i + 1}/#{chunks.length} via #{provider}")
+        data = call_tts(chunk, provider)
         return nil unless data
         data
       end
@@ -80,57 +84,89 @@ module Jobs
       concatenate_audio(audio_parts)
     end
 
-    # Split text into chunks at sentence boundaries, respecting MAX_CHUNK_SIZE
-    def chunk_text(text)
-      return [text] if text.length <= MAX_CHUNK_SIZE
-
-      chunks = []
-      current_chunk = ""
-
-      # Split by sentences (period, exclamation, question mark followed by space)
-      sentences = text.split(/(?<=[.!?])\s+/)
-
-      sentences.each do |sentence|
-        # If a single sentence exceeds the limit, split by words
-        if sentence.length > MAX_CHUNK_SIZE
-          words = sentence.split(/\s+/)
-          words.each do |word|
-            if (current_chunk.length + word.length + 1) > MAX_CHUNK_SIZE
-              chunks << current_chunk.strip unless current_chunk.strip.empty?
-              current_chunk = word
-            else
-              current_chunk += " " + word
-            end
-          end
-          next
-        end
-
-        if (current_chunk.length + sentence.length + 1) > MAX_CHUNK_SIZE
-          chunks << current_chunk.strip unless current_chunk.strip.empty?
-          current_chunk = sentence
-        else
-          current_chunk += " " + sentence
-        end
+    def call_tts(text, provider)
+      case provider
+      when "google"
+        call_google_tts(text)
+      when "openai"
+        call_openai_tts(text)
+      else
+        Rails.logger.error("[discourse-tts] Unknown provider: #{provider}")
+        nil
       end
-
-      chunks << current_chunk.strip unless current_chunk.strip.empty?
-      chunks
     end
 
-    # Call OpenAI TTS API for a single chunk
+    # ===== Google Cloud TTS =====
+
+    def call_google_tts(text)
+      uri = URI("#{GOOGLE_TTS_URL}?key=#{SiteSetting.tts_api_key}")
+
+      voice_name = SiteSetting.tts_google_voice
+      language = SiteSetting.tts_google_language
+
+      # Determine audio encoding
+      audio_encoding = case SiteSetting.tts_audio_format
+                       when "mp3" then "MP3"
+                       when "opus" then "OGG_OPUS"
+                       when "aac" then "MP3" # Google doesn't support AAC, fallback to MP3
+                       else "MP3"
+                       end
+
+      body = {
+        input: { text: text },
+        voice: {
+          languageCode: language,
+          name: voice_name
+        },
+        audioConfig: {
+          audioEncoding: audio_encoding,
+          speakingRate: SiteSetting.tts_speed.to_f,
+          pitch: 0.0
+        }
+      }
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 120
+      http.open_timeout = 30
+
+      request = Net::HTTP::Post.new(uri)
+      request["Content-Type"] = "application/json"
+      request.body = body.to_json
+
+      response = http.request(request)
+
+      unless response.is_a?(Net::HTTPSuccess)
+        error_body = JSON.parse(response.body) rescue response.body
+        Rails.logger.error("[discourse-tts] Google TTS API error: #{response.code} - #{error_body}")
+        return nil
+      end
+
+      result = JSON.parse(response.body)
+      audio_content = result["audioContent"]
+
+      unless audio_content
+        Rails.logger.error("[discourse-tts] Google TTS: no audioContent in response")
+        return nil
+      end
+
+      Base64.decode64(audio_content)
+    end
+
+    # ===== OpenAI TTS =====
+
     def call_openai_tts(text)
       uri = URI(OPENAI_TTS_URL)
 
       body = {
-        model: SiteSetting.tts_model,
+        model: SiteSetting.tts_openai_model,
         input: text,
-        voice: SiteSetting.tts_voice,
+        voice: SiteSetting.tts_openai_voice,
         response_format: SiteSetting.tts_audio_format,
         speed: SiteSetting.tts_speed.to_f
       }
 
-      # Add instructions for gpt-4o-mini-tts model
-      if SiteSetting.tts_model == "gpt-4o-mini-tts" && SiteSetting.tts_instructions.present?
+      if SiteSetting.tts_openai_model == "gpt-4o-mini-tts" && SiteSetting.tts_instructions.present?
         body[:instructions] = SiteSetting.tts_instructions
       end
 
@@ -155,23 +191,55 @@ module Jobs
       response.body
     end
 
-    # Concatenate multiple audio chunks using ffmpeg
+    # ===== Shared helpers =====
+
+    def chunk_text(text, max_size)
+      return [text] if text.length <= max_size
+
+      chunks = []
+      current_chunk = ""
+
+      sentences = text.split(/(?<=[.!?])\s+/)
+
+      sentences.each do |sentence|
+        if sentence.length > max_size
+          words = sentence.split(/\s+/)
+          words.each do |word|
+            if (current_chunk.length + word.length + 1) > max_size
+              chunks << current_chunk.strip unless current_chunk.strip.empty?
+              current_chunk = word
+            else
+              current_chunk += " " + word
+            end
+          end
+          next
+        end
+
+        if (current_chunk.length + sentence.length + 1) > max_size
+          chunks << current_chunk.strip unless current_chunk.strip.empty?
+          current_chunk = sentence
+        else
+          current_chunk += " " + sentence
+        end
+      end
+
+      chunks << current_chunk.strip unless current_chunk.strip.empty?
+      chunks
+    end
+
     def concatenate_audio(audio_parts)
       format = SiteSetting.tts_audio_format
 
       Dir.mktmpdir("tts_concat") do |tmpdir|
-        # Write each part to a temp file
         part_files = audio_parts.each_with_index.map do |data, i|
           path = File.join(tmpdir, "part_#{i}.#{format}")
           File.binwrite(path, data)
           path
         end
 
-        # Create ffmpeg concat file list
         list_path = File.join(tmpdir, "filelist.txt")
         File.write(list_path, part_files.map { |f| "file '#{f}'" }.join("\n"))
 
-        # Concatenate
         output_path = File.join(tmpdir, "output.#{format}")
         result = system(
           "ffmpeg", "-y", "-f", "concat", "-safe", "0",
@@ -188,7 +256,6 @@ module Jobs
       end
     end
 
-    # Create a Discourse Upload from audio binary data
     def create_upload(post, audio_data, user_id)
       format = SiteSetting.tts_audio_format
 

@@ -4,12 +4,56 @@ plugins:
     client: true
     description: "Enable text-to-speech audio generation for posts"
 
+  tts_provider:
+    default: "google"
+    type: list
+    choices:
+      - google
+      - openai
+    client: false
+    description: "TTS provider: Google Cloud TTS or OpenAI"
+
   tts_api_key:
     default: ""
     secret: true
-    description: "OpenAI API key for TTS generation"
+    description: "API key for the selected TTS provider"
 
-  tts_model:
+  # --- Google Cloud TTS settings ---
+
+  tts_google_voice:
+    default: "de-DE-Studio-B"
+    type: list
+    choices:
+      - de-DE-Studio-B
+      - de-DE-Studio-C
+      - de-DE-Neural2-B
+      - de-DE-Neural2-C
+      - de-DE-Neural2-D
+      - de-DE-Neural2-F
+      - en-US-Studio-O
+      - en-US-Studio-Q
+      - en-US-Neural2-A
+      - en-US-Neural2-C
+      - en-US-Neural2-D
+      - en-US-Neural2-F
+    client: false
+    description: "Google Cloud TTS voice (Studio = highest quality, Neural2 = good quality)"
+
+  tts_google_language:
+    default: "de-DE"
+    type: list
+    choices:
+      - de-DE
+      - en-US
+      - en-GB
+      - fr-FR
+      - es-ES
+    client: false
+    description: "Language code for Google Cloud TTS"
+
+  # --- OpenAI TTS settings ---
+
+  tts_openai_model:
     default: "tts-1-hd"
     type: list
     choices:
@@ -19,7 +63,7 @@ plugins:
     client: false
     description: "OpenAI TTS model to use"
 
-  tts_voice:
+  tts_openai_voice:
     default: "nova"
     type: list
     choices:
@@ -32,8 +76,8 @@ plugins:
       - onyx
       - sage
       - shimmer
-    client: true
-    description: "Voice to use for TTS generation"
+    client: false
+    description: "OpenAI voice to use"
 
   tts_speed:
     default: "1.0"
