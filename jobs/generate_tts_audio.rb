@@ -58,6 +58,9 @@ module Jobs
     private
 
     def extract_text(html)
+      # Cut at first <hr> — everything after (e.g. sources) is excluded
+      html = html.split(/<hr\s*\/?>/).first || html
+
       text = ActionView::Base.full_sanitizer.sanitize(html)
       text = CGI.unescapeHTML(text)
       text.gsub(/\s+/, " ").strip
