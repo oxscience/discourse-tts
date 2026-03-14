@@ -61,18 +61,28 @@ module Jobs
       # Cut at first <hr> — everything after (e.g. sources) is excluded
       html = html.split(/<hr\s*\/?>/).first || html
 
-      # Add pauses after headings: append period + newlines so TTS takes a breath
-      html = html.gsub(%r{</h[1-6]>}i, '.\n\n')
+      # Remove links, images, code blocks (not useful for audio)
+      html = html.gsub(/<a [^>]*href=[^>]*>([^<]*)<\/a>/i, '\1')  # keep link text
+      html = html.gsub(/<img[^>]*>/i, '')
+      html = html.gsub(/<pre[^>]*>.*?<\/pre>/im, '')
+      html = html.gsub(/<code[^>]*>.*?<\/code>/im, '')
 
-      # Add pause after paragraphs and list items
-      html = html.gsub(%r{</p>}i, '.\n')
-      html = html.gsub(%r{</li>}i, '.\n')
+      # Add pauses after headings: period + newlines so TTS takes a breath
+      html = html.gsub(%r{</h[1-6]>}i, '. ')
+
+      # Ensure sentence breaks after block elements
+      html = html.gsub(%r{</p>}i, '. ')
+      html = html.gsub(%r{</li>}i, '. ')
+      html = html.gsub(%r{</blockquote>}i, '. ')
+      html = html.gsub(%r{<br\s*/?>}i, '. ')
 
       text = ActionView::Base.full_sanitizer.sanitize(html)
       text = CGI.unescapeHTML(text)
 
-      # Clean up duplicate periods (e.g. "Heading." becomes "Heading.." → fix)
+      # Clean up: duplicate periods, orphaned punctuation
       text = text.gsub(/\.{2,}/, '.')
+      text = text.gsub(/\.\s*,/, '.')
+      text = text.gsub(/:\s*\./, '.')
 
       text.gsub(/\s+/, " ").strip
     end
