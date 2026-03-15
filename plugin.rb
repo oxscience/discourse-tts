@@ -52,23 +52,26 @@ after_initialize do
 
   # ----- Event hooks -----
 
+  # Helper: only category topics (no chat, no PMs), first post only
+  tts_eligible = ->(post) do
+    return false unless SiteSetting.tts_enabled && SiteSetting.tts_auto_generate
+    return false unless post.post_type == Post.types[:regular]
+    return false unless post.post_number == 1                        # nur der Hauptbeitrag
+    return false unless post.topic&.archetype == Archetype.default   # nur reguläre Topics (kein Chat/PM)
+    return false if post.raw.length > SiteSetting.tts_max_post_length
+    true
+  end
+
   # Auto-generate TTS for new posts (if enabled)
   on(:post_created) do |post, _opts, _user|
-    if SiteSetting.tts_enabled &&
-       SiteSetting.tts_auto_generate &&
-       post.post_type == Post.types[:regular] &&
-       post.raw.length <= SiteSetting.tts_max_post_length
+    if tts_eligible.call(post)
       Jobs.enqueue(:generate_tts_audio, post_id: post.id)
     end
   end
 
   # Re-generate TTS when a post is edited
   on(:post_edited) do |post, _topic_changed|
-    if SiteSetting.tts_enabled &&
-       SiteSetting.tts_auto_generate &&
-       post.post_type == Post.types[:regular] &&
-       post.raw.length <= SiteSetting.tts_max_post_length
-      # Remove old audio reference (upload itself gets cleaned up by scheduled job)
+    if tts_eligible.call(post)
       PluginStore.remove("discourse-tts", "post_#{post.id}_upload_id")
       Jobs.enqueue(:generate_tts_audio, post_id: post.id)
     end
