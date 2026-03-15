@@ -11,6 +11,10 @@ export default apiInitializer((api) => {
       const post = helper.getModel();
       if (!post || !post.tts_upload_url) return;
 
+      // Only show on first post of regular topics (no chat, no PMs)
+      if (post.post_number !== 1) return;
+      if (element.closest(".chat-message, .private-message")) return;
+
       // Don't add twice
       if (element.querySelector(".tts-audio-player")) return;
 
