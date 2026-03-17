@@ -52,13 +52,18 @@ after_initialize do
 
   # ----- Event hooks -----
 
-  # Helper: only category topics (no chat, no PMs), first post only
+  # Helper: only category topics (no chat, no PMs), first post only, excluded categories respected
   tts_eligible = ->(post) do
     return false unless SiteSetting.tts_enabled && SiteSetting.tts_auto_generate
     return false unless post.post_type == Post.types[:regular]
     return false unless post.post_number == 1                        # nur der Hauptbeitrag
     return false unless post.topic&.archetype == Archetype.default   # nur reguläre Topics (kein Chat/PM)
     return false if post.raw.length > SiteSetting.tts_max_post_length
+
+    # Excluded categories
+    excluded = SiteSetting.tts_excluded_category_ids.to_s.split(",").map(&:strip).map(&:to_i).reject(&:zero?)
+    return false if excluded.include?(post.topic&.category_id)
+
     true
   end
 

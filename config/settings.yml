@@ -119,6 +119,11 @@ plugins:
     client: false
     description: "Only auto-generate TTS for the first post in a topic (OP)"
 
+  tts_excluded_category_ids:
+    default: ""
+    client: true
+    description: "Komma-getrennte Liste von Kategorie-IDs, für die kein TTS generiert wird (z.B. 4,7)"
+
   tts_instructions:
     default: "Speak clearly and naturally in a conversational tone. Read the text as an informative article."
     type: text
