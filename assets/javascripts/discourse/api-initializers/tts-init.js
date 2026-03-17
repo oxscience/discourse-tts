@@ -15,6 +15,11 @@ export default apiInitializer((api) => {
       if (post.post_number !== 1) return;
       if (element.closest(".chat-message, .private-message")) return;
 
+      // Check excluded categories
+      const excluded = (api.container.lookup("service:site-settings").tts_excluded_category_ids || "").split(",").map(s => parseInt(s.trim(), 10));
+      const topic = post.topic || api.container.lookup("controller:topic")?.model;
+      if (topic && excluded.includes(topic.category_id)) return;
+
       // Don't add twice
       if (element.querySelector(".tts-audio-player")) return;
 
