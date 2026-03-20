@@ -94,13 +94,13 @@ module Jobs
       chunks = chunk_text(text, max_chunk)
 
       if chunks.length == 1
-        return call_tts(chunks.first, provider)
+        return call_tts(chunks.first, provider, first_chunk: true)
       end
 
       # Multiple chunks: generate each, then concatenate
       audio_parts = chunks.map.with_index do |chunk, i|
         Rails.logger.info("[discourse-tts] Generating chunk #{i + 1}/#{chunks.length} via #{provider}")
-        data = call_tts(chunk, provider)
+        data = call_tts(chunk, provider, first_chunk: i == 0)
         return nil unless data
         data
       end
@@ -108,10 +108,10 @@ module Jobs
       concatenate_audio(audio_parts)
     end
 
-    def call_tts(text, provider)
+    def call_tts(text, provider, first_chunk: false)
       case provider
       when "google"
-        call_google_tts(text)
+        call_google_tts(text, first_chunk: first_chunk)
       when "openai"
         call_openai_tts(text)
       else
@@ -122,7 +122,7 @@ module Jobs
 
     # ===== Google Cloud TTS =====
 
-    def call_google_tts(text)
+    def call_google_tts(text, first_chunk: false)
       uri = URI("#{GOOGLE_TTS_URL}?key=#{SiteSetting.tts_api_key}")
 
       voice_name = SiteSetting.tts_google_voice
@@ -136,8 +136,17 @@ module Jobs
                        else "MP3"
                        end
 
+      # Prepend 1.5s silence on the first chunk so the first word isn't clipped
+      input =
+        if first_chunk
+          escaped = text.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;")
+          { ssml: "<speak><break time=\"1500ms\"/>#{escaped}</speak>" }
+        else
+          { text: text }
+        end
+
       body = {
-        input: { text: text },
+        input: input,
         voice: {
           languageCode: language,
           name: voice_name
