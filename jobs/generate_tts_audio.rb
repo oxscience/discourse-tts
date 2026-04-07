@@ -11,8 +11,10 @@ module Jobs
 
     OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
     GOOGLE_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
+    ELEVENLABS_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
     MAX_CHUNK_OPENAI = 4096
     MAX_CHUNK_GOOGLE = 3500  # Google limit is 5000 bytes; use 3500 chars to be safe with multi-byte (ä, ö, ü)
+    MAX_CHUNK_ELEVENLABS = 4500  # Starter plan allows 5000, keep buffer for multi-byte chars
 
     def execute(args)
       post_id = args[:post_id]
@@ -90,7 +92,11 @@ module Jobs
     def generate_audio(text)
       provider = SiteSetting.tts_provider
 
-      max_chunk = provider == "google" ? MAX_CHUNK_GOOGLE : MAX_CHUNK_OPENAI
+      max_chunk = case provider
+                  when "google" then MAX_CHUNK_GOOGLE
+                  when "elevenlabs" then MAX_CHUNK_ELEVENLABS
+                  else MAX_CHUNK_OPENAI
+                  end
       chunks = chunk_text(text, max_chunk)
 
       if chunks.length == 1
@@ -114,6 +120,8 @@ module Jobs
         call_google_tts(text, first_chunk: first_chunk)
       when "openai"
         call_openai_tts(text)
+      when "elevenlabs"
+        call_elevenlabs_tts(text)
       else
         Rails.logger.error("[discourse-tts] Unknown provider: #{provider}")
         nil
@@ -218,6 +226,59 @@ module Jobs
       unless response.is_a?(Net::HTTPSuccess)
         error_body = JSON.parse(response.body) rescue response.body
         Rails.logger.error("[discourse-tts] OpenAI API error: #{response.code} - #{error_body}")
+        return nil
+      end
+
+      response.body
+    end
+
+    # ===== ElevenLabs TTS =====
+
+    def call_elevenlabs_tts(text)
+      voice_id = SiteSetting.tts_elevenlabs_voice_id
+      if voice_id.blank?
+        Rails.logger.error("[discourse-tts] ElevenLabs voice ID is not configured")
+        return nil
+      end
+
+      # Map audio format to ElevenLabs output_format parameter
+      output_format = case SiteSetting.tts_audio_format
+                      when "mp3" then "mp3_44100_128"
+                      when "opus" then "mp3_44100_128" # ElevenLabs doesn't support raw Opus, use MP3
+                      when "aac" then "mp3_44100_128"
+                      else "mp3_44100_128"
+                      end
+
+      uri = URI("#{ELEVENLABS_TTS_URL}/#{voice_id}?output_format=#{output_format}")
+
+      body = {
+        text: text,
+        model_id: SiteSetting.tts_elevenlabs_model,
+        voice_settings: {
+          stability: SiteSetting.tts_elevenlabs_stability.to_f,
+          similarity_boost: SiteSetting.tts_elevenlabs_similarity.to_f,
+          speed: SiteSetting.tts_speed.to_f
+        }
+      }
+
+      # Language hint for German content
+      body[:language_code] = "de" if SiteSetting.tts_google_language.to_s.start_with?("de")
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 120
+      http.open_timeout = 30
+
+      request = Net::HTTP::Post.new(uri)
+      request["xi-api-key"] = SiteSetting.tts_api_key
+      request["Content-Type"] = "application/json"
+      request.body = body.to_json
+
+      response = http.request(request)
+
+      unless response.is_a?(Net::HTTPSuccess)
+        error_body = JSON.parse(response.body) rescue response.body
+        Rails.logger.error("[discourse-tts] ElevenLabs API error: #{response.code} - #{error_body}")
         return nil
       end
 

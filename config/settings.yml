@@ -10,8 +10,9 @@ plugins:
     choices:
       - google
       - openai
+      - elevenlabs
     client: false
-    description: "TTS provider: Google Cloud TTS or OpenAI"
+    description: "TTS provider: Google Cloud TTS, OpenAI or ElevenLabs"
 
   tts_api_key:
     default: ""
@@ -78,6 +79,45 @@ plugins:
       - shimmer
     client: false
     description: "OpenAI voice to use"
+
+  # --- ElevenLabs TTS settings ---
+
+  tts_elevenlabs_model:
+    default: "eleven_multilingual_v2"
+    type: list
+    choices:
+      - eleven_v3
+      - eleven_multilingual_v2
+      - eleven_flash_v2_5
+    client: false
+    description: "ElevenLabs TTS model (v3 = best quality, flash = fastest & cheapest)"
+
+  tts_elevenlabs_voice_id:
+    default: ""
+    client: false
+    description: "ElevenLabs Voice ID (find in My Voices → More actions → Copy voice ID)"
+
+  tts_elevenlabs_stability:
+    default: "0.5"
+    type: list
+    choices:
+      - "0.3"
+      - "0.5"
+      - "0.7"
+      - "0.9"
+    client: false
+    description: "ElevenLabs voice stability (higher = more consistent, lower = more expressive)"
+
+  tts_elevenlabs_similarity:
+    default: "0.75"
+    type: list
+    choices:
+      - "0.5"
+      - "0.75"
+      - "0.9"
+      - "1.0"
+    client: false
+    description: "ElevenLabs similarity boost (higher = closer to original voice)"
 
   tts_speed:
     default: "1.0"

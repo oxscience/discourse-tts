@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # name: discourse-tts
-# about: Automatische Text-to-Speech Audio-Generierung für Posts (OpenAI TTS)
+# about: Automatische Text-to-Speech Audio-Generierung für Posts (Google, OpenAI, ElevenLabs)
 # version: 0.1.0
 # authors: Your Name
 # url: https://github.com/your-org/discourse-tts
