@@ -5,19 +5,68 @@ plugins:
     description: "Enable text-to-speech audio generation for posts"
 
   tts_provider:
-    default: "google"
+    default: "gemini"
     type: list
     choices:
-      - google
+      - gemini
       - openai
       - elevenlabs
+      - google
     client: false
-    description: "TTS provider: Google Cloud TTS, OpenAI or ElevenLabs"
+    description: "TTS provider: Gemini (empfohlen, kostenlos), OpenAI, ElevenLabs oder Google Cloud TTS"
 
   tts_api_key:
     default: ""
     secret: true
     description: "API key for the selected TTS provider"
+
+  # --- Gemini TTS settings (Google AI Studio, kostenlos) ---
+
+  tts_gemini_model:
+    default: "gemini-2.5-flash-preview-tts"
+    type: list
+    choices:
+      - gemini-2.5-flash-preview-tts
+      - gemini-2.5-pro-preview-tts
+    client: false
+    description: "Gemini TTS model (Flash = schnell & kostenlos, Pro = höchste Qualität)"
+
+  tts_gemini_voice:
+    default: "Kore"
+    type: list
+    choices:
+      - Achernar
+      - Achird
+      - Algenib
+      - Algieba
+      - Alnilam
+      - Aoede
+      - Autonoe
+      - Callirhoe
+      - Charon
+      - Despina
+      - Enceladus
+      - Erinome
+      - Fenrir
+      - Gacrux
+      - Iapetus
+      - Kore
+      - Laomedeia
+      - Leda
+      - Orus
+      - Puck
+      - Pulcherrima
+      - Rasalgethi
+      - Sadachbia
+      - Sadaltager
+      - Schedar
+      - Sulafar
+      - Umbriel
+      - Vindemiatrix
+      - Zephyr
+      - Zubenelgenubi
+    client: false
+    description: "Gemini TTS voice (30 Stimmen verfügbar, Vorschau in AI Studio)"
 
   # --- Google Cloud TTS settings ---
 
@@ -168,4 +217,4 @@ plugins:
     default: "Speak clearly and naturally in a conversational tone. Read the text as an informative article."
     type: text
     client: false
-    description: "Voice instructions (only used with gpt-4o-mini-tts model)"
+    description: "Voice instructions (used with gpt-4o-mini-tts and Gemini TTS)"

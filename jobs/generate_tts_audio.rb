@@ -12,9 +12,11 @@ module Jobs
     OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
     GOOGLE_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize"
     ELEVENLABS_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
+    GEMINI_TTS_URL = "https://generativelanguage.googleapis.com/v1beta/models"
     MAX_CHUNK_OPENAI = 4096
     MAX_CHUNK_GOOGLE = 3500  # Google limit is 5000 bytes; use 3500 chars to be safe with multi-byte (ä, ö, ü)
     MAX_CHUNK_ELEVENLABS = 4500  # Starter plan allows 5000, keep buffer for multi-byte chars
+    MAX_CHUNK_GEMINI = 7000  # Gemini input limit is 8192 tokens; ~7000 chars to be safe
 
     def execute(args)
       post_id = args[:post_id]
@@ -95,6 +97,7 @@ module Jobs
       max_chunk = case provider
                   when "google" then MAX_CHUNK_GOOGLE
                   when "elevenlabs" then MAX_CHUNK_ELEVENLABS
+                  when "gemini" then MAX_CHUNK_GEMINI
                   else MAX_CHUNK_OPENAI
                   end
       chunks = chunk_text(text, max_chunk)
@@ -122,6 +125,8 @@ module Jobs
         call_openai_tts(text)
       when "elevenlabs"
         call_elevenlabs_tts(text)
+      when "gemini"
+        call_gemini_tts(text)
       else
         Rails.logger.error("[discourse-tts] Unknown provider: #{provider}")
         nil
@@ -232,6 +237,91 @@ module Jobs
       response.body
     end
 
+    # ===== Gemini TTS (Google AI Studio) =====
+
+    def call_gemini_tts(text)
+      model = SiteSetting.tts_gemini_model
+      uri = URI("#{GEMINI_TTS_URL}/#{model}:generateContent?key=#{SiteSetting.tts_api_key}")
+
+      # Gemini supports natural language instructions prepended to the text
+      input_text = if SiteSetting.tts_instructions.present?
+                     "#{SiteSetting.tts_instructions}\n\n#{text}"
+                   else
+                     text
+                   end
+
+      body = {
+        contents: [{
+          parts: [{
+            text: input_text
+          }]
+        }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: SiteSetting.tts_gemini_voice
+              }
+            }
+          }
+        }
+      }
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      http.read_timeout = 180
+      http.open_timeout = 30
+
+      request = Net::HTTP::Post.new(uri)
+      request["Content-Type"] = "application/json"
+      request.body = body.to_json
+
+      response = http.request(request)
+
+      unless response.is_a?(Net::HTTPSuccess)
+        error_body = JSON.parse(response.body) rescue response.body
+        Rails.logger.error("[discourse-tts] Gemini TTS API error: #{response.code} - #{error_body}")
+        return nil
+      end
+
+      result = JSON.parse(response.body)
+      audio_data_b64 = result.dig("candidates", 0, "content", "parts", 0, "inlineData", "data")
+
+      unless audio_data_b64
+        Rails.logger.error("[discourse-tts] Gemini TTS: no audio data in response")
+        return nil
+      end
+
+      # Gemini returns raw PCM (24kHz, 16-bit, mono) — convert to WAV
+      pcm_data = Base64.decode64(audio_data_b64)
+      pcm_to_wav(pcm_data, sample_rate: 24000, bits_per_sample: 16, channels: 1)
+    end
+
+    # Build a WAV file from raw PCM data (no ffmpeg needed)
+    def pcm_to_wav(pcm_data, sample_rate:, bits_per_sample:, channels:)
+      byte_rate = sample_rate * channels * (bits_per_sample / 8)
+      block_align = channels * (bits_per_sample / 8)
+      data_size = pcm_data.bytesize
+
+      # 44-byte WAV header
+      header = "RIFF"
+      header += [36 + data_size].pack("V")          # file size - 8
+      header += "WAVE"
+      header += "fmt "
+      header += [16].pack("V")                       # fmt chunk size
+      header += [1].pack("v")                         # PCM format
+      header += [channels].pack("v")
+      header += [sample_rate].pack("V")
+      header += [byte_rate].pack("V")
+      header += [block_align].pack("v")
+      header += [bits_per_sample].pack("v")
+      header += "data"
+      header += [data_size].pack("V")
+
+      header + pcm_data
+    end
+
     # ===== ElevenLabs TTS =====
 
     def call_elevenlabs_tts(text)
@@ -328,7 +418,8 @@ module Jobs
     end
 
     def create_upload(post, audio_data, user_id)
-      format = SiteSetting.tts_audio_format
+      # Gemini outputs WAV regardless of the audio_format setting
+      format = SiteSetting.tts_provider == "gemini" ? "wav" : SiteSetting.tts_audio_format
 
       tempfile = Tempfile.new(["tts_post_#{post.id}", ".#{format}"])
       tempfile.binmode
