@@ -1,4 +1,4 @@
-// Discourse TTS — Audio Player (embedded in post)
+// Discourse TTS — Custom Audio Player
 
 .tts-audio-player {
   margin-bottom: 16px;
@@ -11,7 +11,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     color: var(--primary-medium);
     font-size: var(--font-down-1);
     font-weight: 500;
@@ -22,24 +22,70 @@
     }
   }
 
+  // Hide native audio element (we use custom controls)
   audio {
-    width: 100%;
+    display: none;
+  }
+
+  // Custom player
+  .tts-custom-player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .tts-play-btn {
+    flex-shrink: 0;
+    width: 36px;
     height: 36px;
-    border-radius: 6px;
+    border-radius: 50%;
+    border: none;
+    background: var(--tertiary);
+    color: var(--secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s;
+    padding: 0;
+
+    &:hover {
+      opacity: 0.85;
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
   }
 
-  // Webkit audio styling
-  audio::-webkit-media-controls-panel {
-    background: var(--primary-very-low);
+  .tts-progress-wrap {
+    flex: 1;
+    cursor: pointer;
+    padding: 8px 0;
   }
 
-  .tts-time-display {
-    text-align: center;
+  .tts-progress-bar {
+    height: 4px;
+    background: var(--primary-low);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .tts-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--tertiary);
+    border-radius: 2px;
+    transition: width 0.15s linear;
+  }
+
+  .tts-time {
+    flex-shrink: 0;
     font-size: var(--font-down-2);
     color: var(--primary-medium);
-    margin-top: 4px;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
+    min-width: 75px;
+    text-align: right;
   }
 }
 
@@ -49,8 +95,14 @@
     padding: 10px 12px;
     margin-bottom: 12px;
 
-    audio {
+    .tts-play-btn {
+      width: 32px;
       height: 32px;
+    }
+
+    .tts-time {
+      font-size: 11px;
+      min-width: 65px;
     }
   }
 }
