@@ -41,15 +41,17 @@ export default apiInitializer((api) => {
       // duration from the first chunk's header which is wrong. Force it
       // to scan the full file by seeking to the end briefly.
       const audio = player.querySelector("audio");
+      let durationFixed = false;
       audio.addEventListener("loadedmetadata", () => {
-        if (!isFinite(audio.duration) || audio.duration < 10) {
-          // Duration unknown or suspiciously short — force full scan
+        if (!durationFixed) {
+          durationFixed = true;
+          // Always force full scan — concatenated MP3s always have wrong duration
           audio.currentTime = 1e101;
         }
       });
       audio.addEventListener("durationchange", () => {
-        // Browser has recalculated the real duration after seeking
-        if (isFinite(audio.duration) && audio.currentTime > audio.duration - 1) {
+        // Browser has recalculated the real duration after seeking to end
+        if (durationFixed && audio.currentTime > 0) {
           audio.currentTime = 0;
         }
       });
