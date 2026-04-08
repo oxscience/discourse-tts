@@ -203,6 +203,11 @@ plugins:
     client: false
     description: "Automatically generate TTS audio for new posts"
 
+  tts_regenerate_on_edit:
+    default: false
+    client: false
+    description: "Audio bei Post-Edits neu generieren (nur bei >10% Textänderung). Aus = Credits sparen."
+
   tts_auto_generate_first_post_only:
     default: false
     client: false
