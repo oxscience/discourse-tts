@@ -18,6 +18,7 @@ after_initialize do
     ../jobs/generate_tts_audio.rb
     ../jobs/backfill_tts_audio.rb
     ../jobs/cleanup_old_tts_audio.rb
+    ../jobs/scheduled_tts_backfill.rb
   ].each { |path| load File.expand_path(path, __FILE__) }
 
   # ----- Routes -----
