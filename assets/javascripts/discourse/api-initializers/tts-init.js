@@ -32,10 +32,27 @@ export default apiInitializer((api) => {
           </svg>
           <span>Diesen Beitrag anhören</span>
         </div>
-        <audio controls preload="none">
+        <audio controls preload="metadata">
           <source src="${post.tts_upload_url}" type="audio/mpeg">
         </audio>
       `;
+
+      // Fix duration display for concatenated MP3s: the browser reads
+      // duration from the first chunk's header which is wrong. Force it
+      // to scan the full file by seeking to the end briefly.
+      const audio = player.querySelector("audio");
+      audio.addEventListener("loadedmetadata", () => {
+        if (!isFinite(audio.duration) || audio.duration < 10) {
+          // Duration unknown or suspiciously short — force full scan
+          audio.currentTime = 1e101;
+        }
+      });
+      audio.addEventListener("durationchange", () => {
+        // Browser has recalculated the real duration after seeking
+        if (isFinite(audio.duration) && audio.currentTime > audio.duration - 1) {
+          audio.currentTime = 0;
+        }
+      });
 
       element.prepend(player);
     },

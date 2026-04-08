@@ -44,8 +44,9 @@ module Jobs
       upload = create_upload(post, audio_data, user_id)
       return unless upload&.persisted?
 
-      # Store reference
+      # Store reference and text length (for edit-change detection)
       PluginStore.set("discourse-tts", "post_#{post.id}_upload_id", upload.id)
+      PluginStore.set("discourse-tts", "post_#{post.id}_text_length", text.length)
 
       # Notify frontend via MessageBus
       MessageBus.publish("/tts/#{post.id}", {

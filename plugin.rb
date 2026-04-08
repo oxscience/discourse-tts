@@ -75,9 +75,25 @@ after_initialize do
     end
   end
 
-  # Re-generate TTS when a post is edited
+  # Re-generate TTS when a post is significantly edited (>10% text change)
   on(:post_edited) do |post, _topic_changed|
     if tts_eligible.call(post)
+      upload_id = PluginStore.get("discourse-tts", "post_#{post.id}_upload_id")
+      if upload_id && Upload.exists?(id: upload_id)
+        # Compare current text with what was used for the existing audio
+        html = post.cooked.split(/<hr\s*\/?>/).first || post.cooked
+        new_text = ActionView::Base.full_sanitizer.sanitize(html).gsub(/\s+/, " ").strip
+        old_length = PluginStore.get("discourse-tts", "post_#{post.id}_text_length").to_i
+
+        if old_length > 0
+          change_ratio = (new_text.length - old_length).abs.to_f / old_length
+          if change_ratio < 0.10
+            Rails.logger.info("[discourse-tts] Post #{post.id} edit too small (#{(change_ratio * 100).round(1)}%), skipping re-generation")
+            next
+          end
+        end
+      end
+
       PluginStore.remove("discourse-tts", "post_#{post.id}_upload_id")
       Jobs.enqueue(:generate_tts_audio, post_id: post.id)
     end
