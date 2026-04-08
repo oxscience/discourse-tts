@@ -38,23 +38,32 @@ export default apiInitializer((api) => {
       `;
 
       // Fix duration display for concatenated MP3s: the browser reads
-      // duration from the first chunk's header which is wrong. Force it
-      // to scan the full file by seeking to the end briefly.
+      // duration from the first chunk's header which is wrong.
+      // Desktop: force scan on metadata load
+      // Mobile: force scan on first play (mobile blocks preload)
       const audio = player.querySelector("audio");
       let durationFixed = false;
-      audio.addEventListener("loadedmetadata", () => {
-        if (!durationFixed) {
-          durationFixed = true;
-          // Always force full scan — concatenated MP3s always have wrong duration
-          audio.currentTime = 1e101;
+
+      function fixDuration() {
+        if (durationFixed) return;
+        durationFixed = true;
+        const wasPlaying = !audio.paused;
+        const pos = audio.currentTime;
+        audio.currentTime = 1e101;
+
+        function onFixed() {
+          audio.removeEventListener("durationchange", onFixed);
+          audio.currentTime = pos;
+          if (wasPlaying) audio.play();
         }
-      });
-      audio.addEventListener("durationchange", () => {
-        // Browser has recalculated the real duration after seeking to end
-        if (durationFixed && audio.currentTime > 0) {
-          audio.currentTime = 0;
-        }
-      });
+        audio.addEventListener("durationchange", onFixed);
+      }
+
+      // Desktop: triggers on preload="metadata"
+      audio.addEventListener("loadedmetadata", fixDuration);
+
+      // Mobile fallback: triggers when user taps play
+      audio.addEventListener("play", fixDuration, { once: true });
 
       element.prepend(player);
     },
