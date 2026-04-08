@@ -51,6 +51,15 @@ after_initialize do
     upload&.url
   end
 
+  # Expose tts_duration so the frontend can display correct duration on mobile
+  add_to_serializer(
+    :post,
+    :tts_duration,
+    include_condition: -> { SiteSetting.tts_enabled rescue false }
+  ) do
+    PluginStore.get("discourse-tts", "post_#{object.id}_duration") rescue nil
+  end
+
   # ----- Event hooks -----
 
   # Helper: only category topics (no chat, no PMs), first post only, excluded categories respected

@@ -44,9 +44,13 @@ module Jobs
       upload = create_upload(post, audio_data, user_id)
       return unless upload&.persisted?
 
-      # Store reference and text length (for edit-change detection)
+      # Store reference, text length (for edit-change detection), and audio duration
       PluginStore.set("discourse-tts", "post_#{post.id}_upload_id", upload.id)
       PluginStore.set("discourse-tts", "post_#{post.id}_text_length", text.length)
+
+      # Calculate MP3 duration from file size and bitrate (128kbps default)
+      duration = estimate_mp3_duration(audio_data)
+      PluginStore.set("discourse-tts", "post_#{post.id}_duration", duration) if duration
 
       # Notify frontend via MessageBus
       MessageBus.publish("/tts/#{post.id}", {
@@ -416,6 +420,37 @@ module Jobs
     # No ffmpeg needed.
     def concatenate_audio(audio_parts)
       audio_parts.join
+    end
+
+    # Estimate MP3 duration by parsing frame headers for bitrate.
+    # Falls back to assuming 128kbps if parsing fails.
+    def estimate_mp3_duration(audio_data)
+      bytes = audio_data.bytes
+      bitrate = nil
+
+      # MP3 bitrate lookup table (MPEG1 Layer III)
+      bitrates = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0]
+
+      # Scan first 4KB for a sync word (0xFF 0xFB/0xFA/0xF3/0xF2)
+      limit = [bytes.length, 4096].min
+      (0...limit - 1).each do |i|
+        if bytes[i] == 0xFF && (bytes[i + 1] & 0xE0) == 0xE0
+          # Found sync word — extract bitrate index (bits 12-15 of header)
+          bitrate_index = (bytes[i + 2] >> 4) & 0x0F
+          br = bitrates[bitrate_index]
+          if br > 0
+            bitrate = br
+            break
+          end
+        end
+      end
+
+      bitrate ||= 128  # fallback
+      duration_seconds = (audio_data.bytesize * 8.0) / (bitrate * 1000)
+      duration_seconds.round(1)
+    rescue => e
+      Rails.logger.warn("[discourse-tts] Could not estimate MP3 duration: #{e.message}")
+      nil
     end
 
     def create_upload(post, audio_data, user_id)
