@@ -32,6 +32,15 @@
   audio::-webkit-media-controls-panel {
     background: var(--primary-very-low);
   }
+
+  .tts-time-display {
+    text-align: center;
+    font-size: var(--font-down-2);
+    color: var(--primary-medium);
+    margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
 }
 
 // Mobile

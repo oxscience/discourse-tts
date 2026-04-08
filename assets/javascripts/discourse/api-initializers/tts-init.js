@@ -45,9 +45,21 @@ export default apiInitializer((api) => {
         <audio controls preload="none">
           <source src="${post.tts_upload_url}" type="audio/mpeg">
         </audio>
+        ${serverDuration ? `<div class="tts-time-display">0:00 / ${formatTime(serverDuration)}</div>` : ""}
       `;
 
       element.prepend(player);
+
+      // Custom time display — fixes wrong duration on mobile (iOS) for concatenated MP3s
+      if (serverDuration) {
+        const audioEl = player.querySelector("audio");
+        const timeDisplay = player.querySelector(".tts-time-display");
+        if (audioEl && timeDisplay) {
+          audioEl.addEventListener("timeupdate", () => {
+            timeDisplay.textContent = `${formatTime(audioEl.currentTime)} / ${formatTime(serverDuration)}`;
+          });
+        }
+      }
     },
     { id: "discourse-tts-player" }
   );
