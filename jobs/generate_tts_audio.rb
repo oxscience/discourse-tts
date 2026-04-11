@@ -48,6 +48,10 @@ module Jobs
       PluginStore.set("discourse-tts", "post_#{post.id}_upload_id", upload.id)
       PluginStore.set("discourse-tts", "post_#{post.id}_text_length", text.length)
 
+      # Bind the upload to the post so Jobs::CleanUpUploads does not hard-delete
+      # it as an orphan after the grace period (48h by default).
+      UploadReference.ensure_exist!(upload_ids: [upload.id], target: post)
+
       # Calculate MP3 duration from file size and bitrate (128kbps default)
       duration = estimate_mp3_duration(audio_data)
       PluginStore.set("discourse-tts", "post_#{post.id}_duration", duration) if duration
