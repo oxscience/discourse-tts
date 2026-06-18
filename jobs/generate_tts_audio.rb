@@ -50,7 +50,16 @@ module Jobs
 
       # Bind the upload to the post so Jobs::CleanUpUploads does not hard-delete
       # it as an orphan after the grace period (48h by default).
-      UploadReference.ensure_exist!(upload_ids: [upload.id], target: post)
+      #
+      # NOTE: do NOT use UploadReference.ensure_exist!(upload_ids: [upload.id], ...)
+      # here. ensure_exist! has REPLACE semantics per target: it deletes every
+      # reference on the post that is not in the passed list. Since a post can
+      # carry other uploads (PDF attachments, images), passing only the audio id
+      # would strip their references and let CleanUpUploads hard-delete them.
+      # Create only this upload's reference, additively, never touching siblings.
+      unless UploadReference.exists?(upload_id: upload.id, target_type: "Post", target_id: post.id)
+        UploadReference.create!(upload_id: upload.id, target_type: "Post", target_id: post.id)
+      end
 
       # Calculate MP3 duration from file size and bitrate (128kbps default)
       duration = estimate_mp3_duration(audio_data)
