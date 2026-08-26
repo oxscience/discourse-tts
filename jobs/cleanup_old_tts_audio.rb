@@ -19,7 +19,8 @@ module Jobs
         post = Post.find_by(id: post_id)
 
         # Check if the upload still exists
-        upload = Upload.find_by(id: row.typed_value) if row.typed_value.present?
+        upload_id = PluginStore.get("discourse-tts", row.key)
+        upload = Upload.find_by(id: upload_id) if upload_id.present?
 
         # Clean up if post is deleted or upload is missing
         if post.nil? || upload.nil?
