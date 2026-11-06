@@ -39,13 +39,27 @@ after_initialize do
     tts_upload_id.present?
   end
 
+  # One recording per language: post_<id>_upload_id/_duration hold the original, post_<id>_<locale>_upload_id/_duration
+  # a translation's. Readers get the recording of the text Discourse shows them (content localization): "_en" when
+  # they see the English translation and it has its own recording, "" (the original) otherwise.
+  add_to_class(:post_serializer, :tts_suffix) do
+    return @tts_suffix if defined?(@tts_suffix)
+    @tts_suffix =
+      begin
+        locale = ContentLocalization.show_translated_post?(object, scope) && object.get_localization(fallback: false)&.locale
+        locale && PluginStore.get("discourse-tts", "post_#{object.id}_#{locale}_upload_id") ? "_#{locale}" : ""
+      rescue StandardError
+        ""
+      end
+  end
+
   # Expose tts_upload_url in the post serializer so the frontend knows about it
   add_to_serializer(
     :post,
     :tts_upload_url,
     include_condition: -> { SiteSetting.tts_enabled rescue false }
   ) do
-    upload_id = PluginStore.get("discourse-tts", "post_#{object.id}_upload_id") rescue nil
+    upload_id = PluginStore.get("discourse-tts", "post_#{object.id}#{tts_suffix}_upload_id") rescue nil
     next nil unless upload_id
     upload = Upload.find_by(id: upload_id)
     upload&.url
@@ -57,7 +71,16 @@ after_initialize do
     :tts_duration,
     include_condition: -> { SiteSetting.tts_enabled rescue false }
   ) do
-    PluginStore.get("discourse-tts", "post_#{object.id}_duration") rescue nil
+    PluginStore.get("discourse-tts", "post_#{object.id}#{tts_suffix}_duration") rescue nil
+  end
+
+  # Language of a translation's recording, so clients can tell it matches the text; absent for the original
+  add_to_serializer(
+    :post,
+    :tts_locale,
+    include_condition: -> { (SiteSetting.tts_enabled rescue false) && tts_suffix.present? }
+  ) do
+    tts_suffix.delete_prefix("_")
   end
 
   # ----- Event hooks -----
